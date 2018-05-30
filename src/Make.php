@@ -505,14 +505,16 @@ class Make
             true,
             $identificador . "Descrição da Natureza da Operação"
         );
-        //removido no layout 4.00
-        $this->dom->addChild(
-            $ide,
-            "indPag",
-            $std->indPag,
-            ($this->version == '3.10') ? true : false,
-            $identificador . "Indicador da forma de pagamento"
-        );
+        //removido desta posição no layout 4.00
+        if ($this->version == '3.10') {
+            $this->dom->addChild(
+                $ide,
+                "indPag",
+                $std->indPag,
+                true,
+                $identificador . "Indicador da forma de pagamento"
+            );
+        }
         $this->dom->addChild(
             $ide,
             "mod",
@@ -6013,7 +6015,8 @@ class Make
 
     /**
      * Grupo de Formas de Pagamento YA01a pai YA01
-     * NOTA: Ajuste nt_2016_002_v1.30
+     * NOTA: Ajuste NT_2016_002_v1.30
+     * NOTA: Ajuste NT_2016_002_v1 51
      * tag NFe/infNFe/pag/detPag
      * @param stdClass $std
      * @return DOMElement
@@ -6021,6 +6024,7 @@ class Make
     public function tagdetPag($std)
     {
         $possible = [
+            'indPag',
             'tPag',
             'vPag',
             'CNPJ',
@@ -6081,6 +6085,13 @@ class Make
         } else {
             //padrão para layout 4.00
             $detPag = $this->dom->createElement("detPag");
+            $this->dom->addChild(
+                $detPag,
+                "indPag",
+                !is_null($std->indPag) ? $std->indPag : null,
+                false,
+                "Indicador da Forma de Pagamento"
+            );
             $this->dom->addChild(
                 $detPag,
                 "tPag",
