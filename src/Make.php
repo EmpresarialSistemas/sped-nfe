@@ -20,6 +20,7 @@ namespace NFePHP\NFe;
 use NFePHP\Common\Keys;
 use NFePHP\Common\DOMImproved as Dom;
 use NFePHP\Common\Strings;
+use NFePHP\NFe\Common\Gtin;
 use stdClass;
 use RuntimeException;
 use DOMElement;
@@ -179,10 +180,6 @@ class Make
      * @var array of DOMElements
      */
     protected $aDetExport = [];
-    /**
-     * @var array of DOMElements
-     */
-    protected $aExportInd = [];
     /**
      * @var array of DOMElements
      */
@@ -479,7 +476,12 @@ class Make
             'xJust'
         ];
         $std = $this->equilizeParameters($std, $possible);
-
+        if (empty($std->cNF)) {
+            $std->cNF = Keys::random();
+        }
+        if (empty($std->cDV)) {
+            $std->cDV = 0;
+        }
         $this->tpAmb = $std->tpAmb;
         $this->mod = $std->mod;
         $identificador = 'B01 <ide> - ';
@@ -1573,6 +1575,9 @@ class Make
         
         $cean = !empty($std->cEAN) ? trim(strtoupper($std->cEAN)) : '';
         $ceantrib = !empty($std->cEANTrib) ? trim(strtoupper($std->cEANTrib)) : '';
+        //throw exception if not is Valid
+        Gtin::isValid($cean);
+        Gtin::isValid($ceantrib);
         
         $identificador = 'I01 <prod> - ';
         $prod = $this->dom->createElement("prod");
@@ -1708,7 +1713,7 @@ class Make
             $prod,
             "vDesc",
             $std->vDesc,
-            false,
+            isset($std->vDesc) ? true : false,
             $identificador . "[item $std->item] Valor do Desconto"
         );
         $this->dom->addChild(
@@ -2017,7 +2022,6 @@ class Make
     {
         $possible = [
             'item',
-            'nDE',
             'nDraw'
         ];
         $std = $this->equilizeParameters($std, $possible);
@@ -2031,7 +2035,7 @@ class Make
             false,
             $identificador . "[item $std->item] Número do ato concessório de Drawback"
         );
-        $this->aDetExport[$std->item][$std->nDE] = $detExport;
+        $this->aDetExport[$std->item][] = $detExport;
         return $detExport;
     }
 
@@ -2045,7 +2049,6 @@ class Make
     {
         $possible = [
             'item',
-            'nDE',
             'nRE',
             'chNFe',
             'qExport'
@@ -2075,11 +2078,16 @@ class Make
             true,
             $identificador . "[item $std->item] Quantidade do item realmente exportado"
         );
-        $this->aExportInd[$std->item][$std->nDE][] = $exportInd;
+        //obtem o ultimo detExport
+        $nDE = count($this->aDetExport[$std->item])-1;
+        if ($nDE < 0) {
+            throw new RuntimeException('A TAG detExportInd deve ser criada depois da detExport, pois pertence a ela.');
+        }
+        //$this->aExportInd[$std->item][$nDE][] = $exportInd;
         //colocar a exportInd em seu DetExport respectivo
-        $nodeDetExport = $this->aDetExport[$std->item][$std->nDE];
+        $nodeDetExport = $this->aDetExport[$std->item][$nDE];
         $this->dom->appChild($nodeDetExport, $exportInd);
-        $this->aDetExport[$std->item][$std->nDE] = $nodeDetExport;
+        $this->aDetExport[$std->item][$nDE] = $nodeDetExport;
         return $exportInd;
     }
 
@@ -2752,7 +2760,11 @@ class Make
             'vICMSSTRet',
             'vBCFCPSTRet',
             'pFCPSTRet',
-            'vFCPSTRet'
+            'vFCPSTRet',
+            'pRedBCEfet',
+            'vBCEfet',
+            'pICMSEfet',
+            'vICMSEfet'
         ];
         $std = $this->equilizeParameters($std, $possible);
         //totalizador
@@ -3332,6 +3344,35 @@ class Make
                     "$identificador [item $std->item] Valor do FCP retido por "
                         . "Substituição Tributária"
                 );
+                $this->dom->addChild(
+                    $icms,
+                    'pRedBCEfet',
+                    $std->pRedBCEfet,
+                    false,
+                    "$identificador [item $std->item] Percentual de redução "
+                        . "para obtenção da base de cálculo efetiva (vBCEfet)"
+                );
+                $this->dom->addChild(
+                    $icms,
+                    'vBCEfet',
+                    $std->vBCEfet,
+                    false,
+                    "$identificador [item $std->item] base de calculo efetiva"
+                );
+                $this->dom->addChild(
+                    $icms,
+                    'pICMSEfet',
+                    $std->pICMSEfet,
+                    false,
+                    "$identificador [item $std->item] Alíquota do ICMS na operação a consumidor final"
+                );
+                $this->dom->addChild(
+                    $icms,
+                    'vICMSEfet',
+                    $std->vICMSEfet,
+                    false,
+                    "$identificador [item $std->item] Valor do ICMS efetivo"
+                );
                 break;
             case '70':
                 $icms = $this->dom->createElement("ICMS70");
@@ -3505,14 +3546,14 @@ class Make
                     $icms,
                     'modBC',
                     $std->modBC,
-                    true,
+                    false,
                     "$identificador [item $std->item] Modalidade de determinação da BC do ICMS"
                 );
                 $this->dom->addChild(
                     $icms,
                     'vBC',
                     $std->vBC,
-                    true,
+                    false,
                     "$identificador [item $std->item] Valor da BC do ICMS"
                 );
                 $this->dom->addChild(
@@ -3526,14 +3567,14 @@ class Make
                     $icms,
                     'pICMS',
                     $std->pICMS,
-                    true,
+                    false,
                     "$identificador [item $std->item] Alíquota do imposto"
                 );
                 $this->dom->addChild(
                     $icms,
                     'vICMS',
                     $std->vICMS,
-                    true,
+                    false,
                     "$identificador [item $std->item] Valor do ICMS"
                 );
                 $this->dom->addChild(
@@ -3562,7 +3603,7 @@ class Make
                     $icms,
                     'modBCST',
                     $std->modBCST,
-                    true,
+                    false,
                     "$identificador [item $std->item] Modalidade de determinação da BC do ICMS ST"
                 );
                 $this->dom->addChild(
@@ -3583,21 +3624,21 @@ class Make
                     $icms,
                     'vBCST',
                     $std->vBCST,
-                    true,
+                    false,
                     "$identificador [item $std->item] Valor da BC do ICMS ST"
                 );
                 $this->dom->addChild(
                     $icms,
                     'pICMSST',
                     $std->pICMSST,
-                    true,
+                    false,
                     "$identificador [item $std->item] Alíquota do imposto do ICMS ST"
                 );
                 $this->dom->addChild(
                     $icms,
                     'vICMSST',
                     $std->vICMSST,
-                    true,
+                    false,
                     "$identificador [item $std->item] Valor do ICMS ST"
                 );
                 $this->dom->addChild(
@@ -3825,7 +3866,7 @@ class Make
             'CST',
             $std->CST,
             true,
-            "[item $std->item] Tributação do ICMS 41"
+            "[item $std->item] Tributação do ICMS 41 ou 60"
         );
         $this->dom->addChild(
             $icmsST,
@@ -3838,7 +3879,7 @@ class Make
             $icmsST,
             'vICMSSTRet',
             $std->vICMSSTRet,
-            false,
+            true,
             "[item $std->item] Valor do ICMS ST retido na UF remetente"
         );
         $this->dom->addChild(
@@ -3900,6 +3941,10 @@ class Make
             'pRedBC',
             'pICMS',
             'vICMS',
+            'pRedBCEfet',
+            'vBCEfet',
+            'pICMSEfet',
+            'vICMSEfet'
         ];
         $std = $this->equilizeParameters($std, $possible);
 
@@ -3908,7 +3953,6 @@ class Make
         $this->stdTot->vICMS += (float) $std->vICMS;
         $this->stdTot->vBCST += (float) $std->vBCST;
         $this->stdTot->vST += (float) $std->vICMSST;
-
         $this->stdTot->vFCPST += (float) !empty($std->vFCPST) ? $std->vFCPST : 0;
         $this->stdTot->vFCPSTRet += (float) !empty($std->vFCPST) ? $std->vFCPSTRet : 0;
         
@@ -4027,7 +4071,7 @@ class Make
                     $icmsSN,
                     'vBCFCPST',
                     $std->vBCFCPST,
-                    false,
+                    isset($std->vBCFCPST) ? true : false,
                     "[item $std->item] Valor da Base de Cálculo do FCP "
                         . "retido por Substituição Tributária"
                 );
@@ -4035,7 +4079,7 @@ class Make
                     $icmsSN,
                     'pFCPST',
                     $std->pFCPST,
-                    false,
+                    isset($std->pFCPST) ? true : false,
                     "[item $std->item] Percentual do FCP retido por "
                         . "Substituição Tributária"
                 );
@@ -4043,21 +4087,21 @@ class Make
                     $icmsSN,
                     'vFCPST',
                     $std->vFCPST,
-                    false,
+                    isset($std->vFCPST) ? true : false,
                     "[item $std->item] Valor do FCP retido por Substituição Tributária"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'pCredSN',
                     $std->pCredSN,
-                    true,
+                    false,
                     "[item $std->item] Alíquota aplicável de cálculo do crédito (Simples Nacional)."
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'vCredICMSSN',
                     $std->vCredICMSSN,
-                    true,
+                    false,
                     "[item $std->item] Valor crédito do ICMS que pode ser aproveitado nos "
                     . "termos do art. 23 da LC 123 (Simples Nacional)"
                 );
@@ -4125,7 +4169,7 @@ class Make
                     $icmsSN,
                     'vBCFCPST',
                     $std->vBCFCPST,
-                    false,
+                    isset($std->vBCFCPST) ? true : false,
                     "[item $std->item] Valor da Base de Cálculo do FCP "
                         . "retido por Substituição Tributária"
                 );
@@ -4133,7 +4177,7 @@ class Make
                     $icmsSN,
                     'pFCPST',
                     $std->pFCPST,
-                    false,
+                    isset($std->pFCPST) ? true : false,
                     "[item $std->item] Percentual do FCP retido por "
                         . "Substituição Tributária"
                 );
@@ -4141,7 +4185,7 @@ class Make
                     $icmsSN,
                     'vFCPST',
                     $std->vFCPST,
-                    false,
+                    isset($std->vFCPST) ? true : false,
                     "[item $std->item] Valor do FCP retido por Substituição Tributária"
                 );
                 break;
@@ -4165,28 +4209,28 @@ class Make
                     $icmsSN,
                     'vBCSTRet',
                     $std->vBCSTRet,
-                    false,
+                    isset($std->vBCSTRet) ? true : false,
                     "[item $std->item] Valor da BC do ICMS ST retido"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'pST',
                     $std->pST,
-                    false,
+                    isset($std->pST) ? true : false,
                     "[item $std->item] Alíquota suportada pelo Consumidor Final"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'vICMSSTRet',
                     $std->vICMSSTRet,
-                    false,
+                    isset($std->vICMSSTRet) ? true : false,
                     "[item $std->item] Valor do ICMS ST retido"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'vBCFCPSTRet',
                     $std->vBCFCPSTRet,
-                    false,
+                    isset($std->vBCFCPSTRet) ? true : false,
                     "[item $std->item] Valor da Base de Cálculo do FCP "
                         . "retido anteriormente por Substituição Tributária"
                 );
@@ -4194,7 +4238,7 @@ class Make
                     $icmsSN,
                     'pFCPSTRet',
                     $std->pFCPSTRet,
-                    false,
+                    isset($std->pFCPSTRet) ? true : false,
                     "[item $std->item] Percentual do FCP retido anteriormente por "
                         . "Substituição Tributária"
                 );
@@ -4202,9 +4246,38 @@ class Make
                     $icmsSN,
                     'vFCPSTRet',
                     $std->vFCPSTRet,
-                    false,
+                    isset($std->vFCPSTRet) ? true : false,
                     "[item $std->item] Valor do FCP retido anteiormente por "
                         . "Substituição Tributária"
+                );
+                $this->dom->addChild(
+                    $icmsSN,
+                    'pRedBCEfet',
+                    $std->pRedBCEfet,
+                    isset($std->pRedBCEfet) ? true : false,
+                    "[item $std->item] Percentual de redução da base "
+                        . "de cálculo efetiva"
+                );
+                $this->dom->addChild(
+                    $icmsSN,
+                    'vBCEfet',
+                    $std->vBCEfet,
+                    isset($std->vBCEfet) ? true : false,
+                    "[item $std->item] Valor da base de cálculo efetiva"
+                );
+                $this->dom->addChild(
+                    $icmsSN,
+                    'pICMSEfet',
+                    $std->pICMSEfet,
+                    isset($std->pICMSEfet) ? true : false,
+                    "[item $std->item] Alíquota do ICMS efetiva"
+                );
+                $this->dom->addChild(
+                    $icmsSN,
+                    'vICMSEfet',
+                    $std->vICMSEfet,
+                    isset($std->vICMSEfet) ? true : false,
+                    "[item $std->item] Valor do ICMS efetivo"
                 );
                 break;
             case '900':
@@ -4227,14 +4300,14 @@ class Make
                     $icmsSN,
                     'modBC',
                     $std->modBC,
-                    false,
+                    isset($std->modBC) ? true : false,
                     "[item $std->item] Modalidade de determinação da BC do ICMS"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'vBC',
                     $std->vBC,
-                    false,
+                    isset($std->vBC) ? true : false,
                     "[item $std->item] Valor da BC do ICMS"
                 );
                 $this->dom->addChild(
@@ -4248,21 +4321,21 @@ class Make
                     $icmsSN,
                     'pICMS',
                     $std->pICMS,
-                    false,
+                    isset($std->pICMS) ? true : false,
                     "[item $std->item] Alíquota do imposto"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'vICMS',
                     $std->vICMS,
-                    false,
+                    isset($std->pICMS) ? true : false,
                     "[item $std->item] Valor do ICMS"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'modBCST',
                     $std->modBCST,
-                    false,
+                    isset($std->modBCST) ? true : false,
                     "[item $std->item] Alíquota aplicável de cálculo do crédito (Simples Nacional)."
                 );
                 $this->dom->addChild(
@@ -4283,28 +4356,28 @@ class Make
                     $icmsSN,
                     'vBCST',
                     $std->vBCST,
-                    false,
+                    isset($std->vBCST) ? true : false,
                     "[item $std->item] Valor da BC do ICMS ST"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'pICMSST',
                     $std->pICMSST,
-                    false,
+                    isset($std->pICMSST) ? true : false,
                     "[item $std->item] Alíquota do imposto do ICMS ST"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'vICMSST',
                     $std->vICMSST,
-                    false,
+                    isset($std->vICMSST) ? true : false,
                     "[item $std->item] Valor do ICMS ST"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'vBCFCPST',
                     $std->vBCFCPST,
-                    false,
+                    isset($std->vBCFCPST) ? true : false,
                     "[item $std->item] Valor da Base de Cálculo do FCP "
                         . "retido por Substituição Tributária"
                 );
@@ -4312,7 +4385,7 @@ class Make
                     $icmsSN,
                     'pFCPST',
                     $std->pFCPST,
-                    false,
+                    isset($std->pFCPST) ? true : false,
                     "[item $std->item] Percentual do FCP retido por "
                         . "Substituição Tributária"
                 );
@@ -4320,21 +4393,21 @@ class Make
                     $icmsSN,
                     'vFCPST',
                     $std->vFCPST,
-                    false,
+                    isset($std->vFCPST) ? true : false,
                     "[item $std->item] Valor do FCP retido por Substituição Tributária"
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'pCredSN',
                     $std->pCredSN,
-                    false,
+                    isset($std->pCredSN) ? true : false,
                     "[item $std->item] Alíquota aplicável de cálculo do crédito (Simples Nacional)."
                 );
                 $this->dom->addChild(
                     $icmsSN,
                     'vCredICMSSN',
                     $std->vCredICMSSN,
-                    false,
+                    isset($std->vCredICMSSN) ? true : false,
                     "[item $std->item] Valor crédito do ICMS que pode ser aproveitado nos termos do"
                     . " art. 23 da LC 123 (Simples Nacional)"
                 );
@@ -4389,7 +4462,6 @@ class Make
             true,
             "[item $std->item] Valor da BC do ICMS na UF do destinatário"
         );
-        //introduzido no layout 4.00
         $this->dom->addChild(
             $icmsUFDest,
             "vBCFCPUFDest",
@@ -4401,7 +4473,7 @@ class Make
             $icmsUFDest,
             "pFCPUFDest",
             $std->pFCPUFDest,
-            true,
+            false,
             "[item $std->item] Percentual do ICMS relativo ao Fundo de Combate à Pobreza (FCP) na UF de destino"
         );
         $this->dom->addChild(
@@ -4436,14 +4508,14 @@ class Make
             $icmsUFDest,
             "vICMSUFDest",
             $std->vICMSUFDest,
-            false,
+            true,
             "[item $std->item] Valor do ICMS de partilha para a UF do destinatário"
         );
         $this->dom->addChild(
             $icmsUFDest,
             "vICMSUFRemet",
             $std->vICMSUFRemet,
-            false,
+            true,
             "[item $std->item] Valor do ICMS de partilha para a UF do remetente"
         );
         $this->aICMSUFDest[$std->item] = $icmsUFDest;
@@ -6966,7 +7038,8 @@ class Make
             + $this->stdTot->vSeg
             + $this->stdTot->vOutro
             + $this->stdTot->vII
-            + $this->stdTot->vIPI;
+            + $this->stdTot->vIPI
+            + $this->stdTot->vIPIDevol;
 
         //round all values
         $this->stdTot->vBC = round($this->stdTot->vBC, 2);

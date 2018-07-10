@@ -187,7 +187,7 @@ class Tools extends ToolsCommon
         $xJust,
         $tpAmb = null
     ) {
-        if (empty($nSerie) || empty($nIni) || empty($nFin) || empty($xJust)) {
+        if (!isset($nSerie) || empty($nIni) || empty($nFin) || empty($xJust)) {
             throw new RuntimeException('Não foram passados todos os dados necessários.');
         }
         if (empty($tpAmb)) {
@@ -963,9 +963,16 @@ class Tools extends ToolsCommon
         $ret->loadXML($response);
         $retProt = $ret->getElementsByTagName('protNFe')->item(0);
         if (!isset($retProt)) {
-            throw new InvalidArgumentException(
-                'O documento de resposta não contêm o NODE "protNFe".'
-            );
+            $xMotivo = $ret->getElementsByTagName('xMotivo')->item(0);
+            if (isset($xMotivo)) {
+                throw new InvalidArgumentException(
+                    $xMotivo->nodeValue
+                );
+            } else {
+                throw new InvalidArgumentException(
+                    'O documento de resposta não contêm o NODE "protNFe".'
+                );
+            }
         }
         $infProt = $ret->getElementsByTagName('infProt')->item(0);
         $dig = $infProt->getElementsByTagName("digVal")->item(0);
