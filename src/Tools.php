@@ -41,6 +41,7 @@ class Tools extends ToolsCommon
      * @param bool $compactar flag to compress data with gzip
      * @param array $xmls array with xmls substitutes if contigency is on
      * @return string soap response xml
+     * @throws InvalidArgumentException
      */
     public function sefazEnviaLote(
         $aXml,
@@ -50,7 +51,7 @@ class Tools extends ToolsCommon
         &$xmls = []
     ) {
         if (!is_array($aXml)) {
-            throw new \InvalidArgumentException('Os XML das NFe devem ser passados em um array.');
+            throw new InvalidArgumentException('Envia Lote: XMLs de NF-e deve ser um array!');
         }
         $servico = 'NfeAutorizacao';
         $this->checkContingencyForWebServices($servico);
@@ -58,10 +59,8 @@ class Tools extends ToolsCommon
             $indSinc = 0;
         }
         if ($this->contingency->type != '') {
-            //em modo de contingencia
-            //esses xml deverão ser modificados e re-assinados e retornados
-            //no parametro $xmls para serem armazenados pelo aplicativo
-            //pois serão alterados
+            // Em modo de contingencia esses XMLs deverão ser modificados e re-assinados e retornados
+            // no parametro $xmls para serem armazenados pelo aplicativo pois serão alterados.
             foreach ($aXml as $doc) {
                 //corrigir o xml para o tipo de contigência setado
                 $xmls[] = $this->correctNFeForContingencyMode($doc);
@@ -73,11 +72,7 @@ class Tools extends ToolsCommon
             $ax[] = trim(preg_replace("/<\?xml.*?\?>/", "", $xml));
         }
         $sxml = trim(implode("", $ax));
-        $this->servico(
-            $servico,
-            $this->config->siglaUF,
-            $this->tpAmb
-        );
+        $this->servico($servico, $this->config->siglaUF, $this->tpAmb);
         $request = "<enviNFe xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
             . "<idLote>$idLote</idLote>"
             . "<indSinc>$indSinc</indSinc>"
@@ -102,11 +97,12 @@ class Tools extends ToolsCommon
      * @param string $recibo
      * @param int $tpAmb
      * @return string
+     * @throws InvalidArgumentException
      */
     public function sefazConsultaRecibo($recibo, $tpAmb = null)
     {
         if (empty($recibo)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Consulta Recibo: numero do recibo vazio!');
         }
         if (empty($tpAmb)) {
             $tpAmb = $this->tpAmb;
@@ -114,13 +110,9 @@ class Tools extends ToolsCommon
         //carrega serviço
         $servico = 'NfeRetAutorizacao';
         $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $this->config->siglaUF,
-            $tpAmb
-        );
+        $this->servico($servico, $this->config->siglaUF, $tpAmb);
         if ($this->urlService == '') {
-            $msg = "A consulta de NFe não está disponível na SEFAZ {$this->config->siglaUF}!!!";
+            $msg = "A consulta de NFe nao esta disponivel na SEFAZ {$this->config->siglaUF}!";
             throw new RuntimeException($msg);
         }
         $request = "<consReciNFe xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
@@ -140,11 +132,15 @@ class Tools extends ToolsCommon
      * @param string $chave
      * @param int $tpAmb
      * @return string
+     * @throws InvalidArgumentException
      */
     public function sefazConsultaChave($chave, $tpAmb = null)
     {
         if (empty($chave)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Consulta chave: a chave esta vazia!');
+        }
+        if (strlen($chave) != 44 || !is_numeric($chave)) {
+            throw new InvalidArgumentException("Consulta chave: chave \"$chave\" invalida!");
         }
         $uf = UFList::getUFByCode(substr($chave, 0, 2));
         if (empty($tpAmb)) {
@@ -153,11 +149,7 @@ class Tools extends ToolsCommon
         //carrega serviço
         $servico = 'NfeConsultaProtocolo';
         $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $uf,
-            $tpAmb
-        );
+        $this->servico($servico, $uf, $tpAmb);
         $request = "<consSitNFe xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
             . "<tpAmb>$tpAmb</tpAmb>"
             . "<xServ>CONSULTAR</xServ>"
@@ -179,16 +171,12 @@ class Tools extends ToolsCommon
      * @param string $xJust
      * @param int $tpAmb
      * @return string
+     * @throws InvalidArgumentException
      */
-    public function sefazInutiliza(
-        $nSerie,
-        $nIni,
-        $nFin,
-        $xJust,
-        $tpAmb = null
-    ) {
+    public function sefazInutiliza($nSerie, $nIni, $nFin, $xJust, $tpAmb = null)
+    {
         if (!isset($nSerie) || empty($nIni) || empty($nFin) || empty($xJust)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Inutilizacao: parametros incompletos!');
         }
         if (empty($tpAmb)) {
             $tpAmb = $this->tpAmb;
@@ -197,11 +185,7 @@ class Tools extends ToolsCommon
         $servico = 'NfeInutilizacao';
         $this->checkContingencyForWebServices($servico);
         //carrega serviço
-        $this->servico(
-            $servico,
-            $this->config->siglaUF,
-            $tpAmb
-        );
+        $this->servico($servico, $this->config->siglaUF, $tpAmb);
         $cnpj = $this->config->cnpj;
         $strAno = (string) date('y');
         $strSerie = str_pad($nSerie, 3, '0', STR_PAD_LEFT);
@@ -254,18 +238,15 @@ class Tools extends ToolsCommon
      * if in contingency mode this service will cause a
      * Exception and remember not all Sefaz have this service available,
      * so it will not work in some cases.
-     * @param string $uf  federation unit
+     * @param string $uf federation unit (abbreviation)
      * @param string $cnpj CNPJ number (optional)
      * @param string $iest IE number (optional)
-     * @param string $cpf  CPF number (optional)
+     * @param string $cpf CPF number (optional)
      * @return string xml soap response
+     * @throws InvalidArgumentException
      */
-    public function sefazCadastro(
-        $uf,
-        $cnpj = '',
-        $iest = '',
-        $cpf = ''
-    ) {
+    public function sefazCadastro($uf, $cnpj = '', $iest = '', $cpf = '')
+    {
         $filter = '';
         if (!empty($cnpj)) {
             $filter = "<CNPJ>$cnpj</CNPJ>";
@@ -275,17 +256,12 @@ class Tools extends ToolsCommon
             $filter = "<CPF>$cpf</CPF>";
         }
         if (empty($uf) || empty($filter)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Sigla UF esta vazia ou CNPJ+IE+CPF vazios!');
         }
         //carrega serviço
         $servico = 'NfeConsultaCadastro';
         $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $uf,
-            $this->tpAmb,
-            true
-        );
+        $this->servico($servico, $uf, $this->tpAmb, true);
         $request = "<ConsCad xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
             . "<infCons>"
             . "<xServ>CONS-CAD</xServ>"
@@ -319,12 +295,7 @@ class Tools extends ToolsCommon
         }
         $servico = 'NfeStatusServico';
         $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $uf,
-            $tpAmb,
-            $ignoreContingency
-        );
+        $this->servico($servico, $uf, $tpAmb, $ignoreContingency);
         $request = "<consStatServ xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
             . "<tpAmb>$tpAmb</tpAmb><cUF>$this->urlcUF</cUF>"
             . "<xServ>STATUS</xServ></consStatServ>";
@@ -344,20 +315,12 @@ class Tools extends ToolsCommon
      * @param string $fonte data source 'AN' and for some cases it may be 'RS'
      * @return string
      */
-    public function sefazDistDFe(
-        $ultNSU = 0,
-        $numNSU = 0,
-        $fonte = 'AN'
-    ) {
+    public function sefazDistDFe($ultNSU = 0, $numNSU = 0, $fonte = 'AN')
+    {
         //carrega serviço
         $servico = 'NfeDistribuicaoDFe';
         $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $fonte,
-            $this->tpAmb,
-            true
-        );
+        $this->servico($servico, $fonte, $this->tpAmb, true);
         $cUF = UFList::getCodeByUF($this->config->siglaUF);
         $ultNSU = str_pad($ultNSU, 15, '0', STR_PAD_LEFT);
         $tagNSU = "<distNSU><ultNSU>$ultNSU</ultNSU></distNSU>";
@@ -387,21 +350,19 @@ class Tools extends ToolsCommon
 
     /**
      * Request authorization for Letter of Correction
-     * @param  string $chave
-     * @param  string $xCorrecao
-     * @param  int $nSeqEvento
+     * @param string $chave
+     * @param string $xCorrecao
+     * @param int $nSeqEvento
      * @return string
+     * @throws InvalidArgumentException
      */
     public function sefazCCe($chave, $xCorrecao, $nSeqEvento = 1)
     {
         if (empty($chave) || empty($xCorrecao)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('CC-e: chave ou motivo da correcao vazio!');
         }
         $uf = $this->validKeyByUF($chave);
-        $xCorrecao = Strings::replaceSpecialsChars(
-            substr(trim($xCorrecao), 0, 1000)
-        );
-        $tpEvento = 110110;
+        $xCorrecao = Strings::replaceSpecialsChars(substr(trim($xCorrecao), 0, 1000));
         $xCondUso = 'A Carta de Correcao e disciplinada pelo paragrafo '
             . '1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 '
             . 'e pode ser utilizada para regularizacao de erro ocorrido '
@@ -415,13 +376,7 @@ class Tools extends ToolsCommon
         $tagAdic = "<xCorrecao>"
             . $xCorrecao
             . "</xCorrecao><xCondUso>$xCondUso</xCondUso>";
-        return $this->sefazEvento(
-            $uf,
-            $chave,
-            $tpEvento,
-            $nSeqEvento,
-            $tagAdic
-        );
+        return $this->sefazEvento($uf, $chave, self::EVT_CCE, $nSeqEvento, $tagAdic);
     }
 
     /**
@@ -463,23 +418,21 @@ class Tools extends ToolsCommon
             $tagAdic
         );
     }
-
+    
     /**
      * Request the cancellation of the request for an extension of the term
      * of return of products of an NF-e of consignment for industrialization
      * by order with suspension of ICMS in interstate operations
-     * @param  string  $chave
-     * @param  string  $nProt
-     * @param  integer $nSeqEvento
+     * @param string $chave
+     * @param string $nProt
+     * @param integer $nSeqEvento
      * @return string
+     * @throws InvalidArgumentException
      */
-    public function sefazECPP(
-        $chave,
-        $nProt,
-        $nSeqEvento = 1
-    ) {
+    public function sefazECPP($chave, $nProt, $nSeqEvento = 1)
+    {
         if (empty($chave) || empty($nProt)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('A chave ou o numero do protocolo estao vazios!');
         }
         $uf = UFList::getUFByCode(substr($chave, 0, 2));
         $tpEvento = 111502;
@@ -494,41 +447,27 @@ class Tools extends ToolsCommon
                 . "$idPedidoCancelado"
                 . "</idPedidoCancelado>"
                 . "<nProt>$nProt</nProt>";
-        return $this->sefazEvento(
-            $uf,
-            $chave,
-            $tpEvento,
-            $nSeqEvento,
-            $tagAdic
-        );
+        return $this->sefazEvento($uf, $chave, $tpEvento, $nSeqEvento, $tagAdic);
     }
-
+    
     /**
      * Requires nfe cancellation
      * @param  string $chave key of NFe
      * @param  string $xJust justificative 255 characters max
      * @param  string $nProt protocol number
      * @return string
+     * @throws InvalidArgumentException
      */
     public function sefazCancela($chave, $xJust, $nProt)
     {
         if (empty($chave) || empty($xJust) || empty($nProt)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Cancelamento: chave, just ou numprot vazio!');
         }
         $uf = $this->validKeyByUF($chave);
-        $xJust = Strings::replaceSpecialsChars(
-            substr(trim($xJust), 0, 255)
-        );
-        $tpEvento = 110111;
+        $xJust = Strings::replaceSpecialsChars(substr(trim($xJust), 0, 255));
         $nSeqEvento = 1;
         $tagAdic = "<nProt>$nProt</nProt><xJust>$xJust</xJust>";
-        return $this->sefazEvento(
-            $uf,
-            $chave,
-            $tpEvento,
-            $nSeqEvento,
-            $tagAdic
-        );
+        return $this->sefazEvento($uf, $chave, self::EVT_CANCELA, $nSeqEvento, $tagAdic);
     }
 
     /**
@@ -538,60 +477,50 @@ class Tools extends ToolsCommon
      * @param string $xJust Justification for not carrying out the operation
      * @param int $nSeqEvento
      * @return string
+     * @throws InvalidArgumentException
      */
-    public function sefazManifesta(
-        $chave,
-        $tpEvento,
-        $xJust = '',
-        $nSeqEvento = 1
-    ) {
+    public function sefazManifesta($chave, $tpEvento, $xJust = '', $nSeqEvento = 1)
+    {
         if (empty($chave) || empty($tpEvento)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Manifestacao: chave ou tipo de evento vazio!');
         }
         $tagAdic = '';
-        //210240 - Operação não Realizada
-        if ($tpEvento == 210240) {
+        if ($tpEvento == self::EVT_NAO_REALIZADA) {
             $xJust = Strings::replaceSpecialsChars(substr(trim($xJust), 0, 255));
             $tagAdic = "<xJust>$xJust</xJust>";
         }
-        return $this->sefazEvento(
-            'AN',
-            $chave,
-            $tpEvento,
-            $nSeqEvento,
-            $tagAdic
-        );
+        return $this->sefazEvento('AN', $chave, $tpEvento, $nSeqEvento, $tagAdic);
     }
     
     /**
      * Request the registration of the manifestation of recipient in batch
      * @param \stdClass $std
      * @return string
+     * @throws InvalidArgumentException
+     * @throws RuntimeException
      */
     public function sefazManifestaLote(\stdClass $std)
     {
         $allowed = [
-            '210200',
-            '210210',
-            '210220',
-            '210240'
+            self::EVT_CONFIRMACAO,
+            self::EVT_CIENCIA,
+            self::EVT_DESCONHECIMENTO,
+            self::EVT_NAO_REALIZADA,
         ];
         if (empty($std) || empty($std->evento)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Manifestacao: parametro "std" ou evento estao vazios!');
         }
         if (count($std->evento) > 20) {
-            throw new \RuntimeException('O lote de eventos está limitado a 20');
+            throw new RuntimeException('Manifestacao: o lote de eventos esta limitado a 20!');
         }
         $evt = new \stdClass();
         $i = 0;
         foreach ($std->evento as $s) {
-            //se o evento não estiver entre os permitidos ignore
-            if (!in_array($s->tpEvento, $allowed)) {
+            if (!in_array($s->tpEvento, $allowed)) { // se o evento não estiver entre os permitidos ignore
                 continue;
             }
             $tagAdic = '';
-            //210240 - Operação não Realizada
-            if ($s->tpEvento == 210240) {
+            if ($s->tpEvento == self::EVT_NAO_REALIZADA) {
                 $xJust = Strings::replaceSpecialsChars(substr(trim($s->xJust), 0, 255));
                 $tagAdic = "<xJust>$xJust</xJust>";
             }
@@ -611,28 +540,23 @@ class Tools extends ToolsCommon
      * @param \stdClass $std
      * @return string
      * @throws RuntimeException
+     * @throws InvalidArgumentException
      */
     public function sefazEventoLote($uf, \stdClass $std)
     {
         if (empty($uf) || empty($std)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Evento Lote: UF ou parametro "std" vazio!');
         }
         if (count($std->evento) > 20) {
-            throw new \RuntimeException('O lote de eventos está limitado a 20');
+            throw new RuntimeException('Evento Lote: o lote de eventos esta limitado a 20!');
         }
         $servico = 'RecepcaoEvento';
         $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $uf,
-            $this->tpAmb,
-            false
-        );
+        $this->servico($servico, $uf, $this->tpAmb, false);
         $batchRequest = '';
         foreach ($std->evento as $evt) {
-            if ($evt->tpEvento == '110140') {
-                //não é possivel enviar EPEC com outros eventos
-                continue;
+            if ($evt->tpEvento == self::EVT_EPEC) {
+                continue; //não é possivel enviar EPEC com outros eventos
             }
             $ev = $this->tpEv($evt->tpEvento);
             $descEvento = $ev->desc;
@@ -670,7 +594,8 @@ class Tools extends ToolsCommon
             );
             $batchRequest .= Strings::clearXmlString($request, true);
         }
-        $lote = $dt->format('YmdHis').rand(0, 9);
+        $dt = new \DateTime();
+        $lote = $dt->format('YmdHis') . rand(0, 9);
         $request = "<envEvento xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
             . "<idLote>$lote</idLote>"
             . $batchRequest
@@ -687,16 +612,17 @@ class Tools extends ToolsCommon
      * Request authorization for issuance in contingency EPEC
      * @param  string $xml
      * @return string
+     * @throws InvalidArgumentException
+     * @throws RuntimeException
      */
     public function sefazEPEC(&$xml)
     {
         if (empty($xml)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('EPEC: parametro xml esta vazio!');
         }
-        $tpEvento = 110140;
         $nSeqEvento = 1;
         if ($this->contingency->type !== 'EPEC') {
-            throw new \RuntimeException('A contingência EPEC deve estar ativada.');
+            throw new RuntimeException('A contingencia EPEC deve estar ativada!');
         }
         $xml = $this->correctNFeForContingencyMode($xml);
         $dom = new \DOMDocument('1.0', 'UTF-8');
@@ -752,14 +678,8 @@ class Tools extends ToolsCommon
             . "<vICMS>$vICMS</vICMS>"
             . "<vST>$vST</vST>"
             . "</dest>";
-
-        return $this->sefazEvento(
-            'AN',
-            $chNFe,
-            $tpEvento,
-            $nSeqEvento,
-            $tagAdic
-        );
+    
+        return $this->sefazEvento('AN', $chNFe, self::EVT_EPEC, $nSeqEvento, $tagAdic);
     }
 
     /**
@@ -778,18 +698,10 @@ class Tools extends ToolsCommon
         $nSeqEvento = 1,
         $tagAdic = ''
     ) {
-        $ignore = false;
-        if ($tpEvento == 110140) {
-            $ignore = true;
-        }
+        $ignore = $tpEvento == self::EVT_EPEC;
         $servico = 'RecepcaoEvento';
         $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $uf,
-            $this->tpAmb,
-            $ignore
-        );
+        $this->servico($servico, $uf, $this->tpAmb, $ignore);
         $ev = $this->tpEv($tpEvento);
         $descEvento = $ev->desc;
         $cnpj = $this->config->cnpj;
@@ -843,21 +755,17 @@ class Tools extends ToolsCommon
      * NOTA: NfeDownloadNF is deactivated
      * @param  string $chave
      * @return string
+     * @throws InvalidArgumentException
      */
     public function sefazDownload($chave)
     {
         if (empty($chave)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Download: chave esta vazia!');
         }
         //carrega serviço
         $servico = 'NfeDistribuicaoDFe';
         $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            'AN',
-            $this->tpAmb,
-            true
-        );
+        $this->servico($servico, 'AN', $this->tpAmb, true);
         $cUF = UFList::getCodeByUF($this->config->siglaUF);
         $tagChave = "<consChNFe><chNFe>$chave</chNFe></consChNFe>";
         //monta a consulta
@@ -887,27 +795,22 @@ class Tools extends ToolsCommon
      *                   2 - Solicita novo CSC;
      *                   3 - Revoga CSC Ativo
      * @return string
+     * @throws InvalidArgumentException
+     * @throws RuntimeException
      */
     public function sefazCsc($indOp)
     {
         if (empty($indOp) || $indOp < 1 || $indOp > 3) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('CSC: identificador operacao invalido!');
         }
         if ($this->modelo != 65) {
-            throw new RuntimeException(
-                "Esta operação é exclusiva de NFCe modelo [65], "
-                . "você está usando modelo [55]."
-            );
+            throw new RuntimeException('CSC: modelo diferente de 65!');
         }
         $raizCNPJ = substr($this->config->cnpj, 0, -6);
         //carrega serviço
         $servico = 'CscNFCe';
         $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $this->config->siglaUF,
-            $this->tpAmb
-        );
+        $this->servico($servico, $this->config->siglaUF, $this->tpAmb);
         $request = "<admCscNFCe versao=\"$this->urlVersion\" xmlns=\"$this->urlPortal\">"
             . "<tpAmb>$this->tpAmb</tpAmb>"
             . "<indOp>$indOp</indOp>"
@@ -935,13 +838,14 @@ class Tools extends ToolsCommon
 
     /**
      * Checks the validity of an NFe, normally used for received NFe
-     * @param  string $nfe
-     * @return boolean
+     * @param string $nfe
+     * @return bool
+     * @throws InvalidArgumentException
      */
     public function sefazValidate($nfe)
     {
         if (empty($nfe)) {
-            throw new RuntimeException('Não foram passados todos os dados necessários.');
+            throw new InvalidArgumentException('Validacao NF-e: a string da NF-e esta vazia!');
         }
         //verifica a assinatura da NFe, exception caso de falha
         Signer::isSigned($nfe);
@@ -965,13 +869,9 @@ class Tools extends ToolsCommon
         if (!isset($retProt)) {
             $xMotivo = $ret->getElementsByTagName('xMotivo')->item(0);
             if (isset($xMotivo)) {
-                throw new InvalidArgumentException(
-                    $xMotivo->nodeValue
-                );
+                throw new InvalidArgumentException('Validacao NF-e: ' . $xMotivo->nodeValue);
             } else {
-                throw new InvalidArgumentException(
-                    'O documento de resposta não contêm o NODE "protNFe".'
-                );
+                throw new InvalidArgumentException('O documento de resposta nao contem o node "protNFe".');
             }
         }
         $infProt = $ret->getElementsByTagName('infProt')->item(0);
@@ -982,10 +882,7 @@ class Tools extends ToolsCommon
         }
         $chProt = $infProt->getElementsByTagName("chNFe")->item(0)->nodeValue;
         $nProt = $infProt->getElementsByTagName("nProt")->item(0)->nodeValue;
-        if ($protocol == $nProt
-            && $digval == $digProt
-            && $chNFe == $chProt
-        ) {
+        if ($protocol == $nProt && $digval == $digProt && $chNFe == $chProt) {
             return true;
         }
         return false;
@@ -1003,19 +900,15 @@ class Tools extends ToolsCommon
         $std->alias = '';
         $std->desc = '';
         switch ($tpEvento) {
-            case 110110:
-                //CCe
+            case self::EVT_CCE:
                 $std->alias = 'CCe';
                 $std->desc = 'Carta de Correcao';
                 break;
-            case 110111:
-                //Cancelamento
+            case self::EVT_CANCELA:
                 $std->alias = 'CancNFe';
                 $std->desc = 'Cancelamento';
                 break;
-            case 110140:
-                //EPEC
-                //Emissão em contingência EPEC
+            case self::EVT_EPEC: // Emissão em contingência EPEC
                 $std->alias = 'EPEC';
                 $std->desc = 'EPEC';
                 break;
@@ -1033,24 +926,20 @@ class Tools extends ToolsCommon
                 $std->alias = 'ECPP';
                 $std->desc = 'Cancelamento de Pedido de Prorrogacao';
                 break;
-            case 210200:
-                //Manifestação Confirmacao da Operacao
+            case self::EVT_CONFIRMACAO: // Manifestação Confirmacao da Operação
                 $std->alias = 'EvConfirma';
                 $std->desc = 'Confirmacao da Operacao';
                 break;
-            case 210210:
-                //Manifestação Ciencia da Operacao
+            case self::EVT_CIENCIA: // Manifestação Ciencia da Operação
                 $std->alias = 'EvCiencia';
                 $std->desc = 'Ciencia da Operacao';
                 $std->tpAutor = 2;
                 break;
-            case 210220:
-                //Manifestação Desconhecimento da Operacao
+            case self::EVT_DESCONHECIMENTO: // Manifestação Desconhecimento da Operação
                 $std->alias = 'EvDesconh';
                 $std->desc = 'Desconhecimento da Operacao';
                 break;
-            case 210240:
-                //Manifestação Operacao não Realizada
+            case self::EVT_NAO_REALIZADA: // Manifestação Operacao não Realizada
                 $std->alias = 'EvNaoRealizada';
                 $std->desc = 'Operacao nao Realizada';
                 break;

@@ -194,9 +194,11 @@ Com as extensões devidamente instaladas, vá para a RAIZ do seu projeto e rodar
 composer require nfephp-org/sped-nfe
 ```
 
-Rodando esse comando vamos INCLUIR a última versão STABLE da API, como uma dependência do seu projeto, capaz de emitir Nfe e Nfce tando na versão 3.10, como na 4.0.
+Rodando esse comando vamos INCLUIR a última versão STABLE da API, como uma dependência do seu projeto, capaz de emitir Nfe e Nfce tanto na versão 3.10, como na 4.0.
 
-Se você não tem outras dependências ainda será criada uma pasta "vendor" na RAIZ de seu projeto, que conterá todas as dependências do seu projeto e as dos pacotes que você intalou com o composer. 
+Se você não tem outras dependências, será criada uma pasta "vendor" na RAIZ de seu projeto, que conterá todas as dependências do seu projeto e as dos pacotes que você intalou com o composer. 
+
+É de suma importância que entenda como funciona o [COMPOSER]() 
 
 ## Montar XML
 
@@ -518,15 +520,16 @@ $request = "<XML conteudo original do documento que quer protocolar>";
 $response = "<XML conteudo do retorno com a resposta da SEFAZ>";
 
 try {
-    $xml = Complements::toAuthorize($req, $res);
+    $xml = Complements::toAuthorize($request, $response);
     header('Content-type: text/xml; charset=UTF-8');
     echo $xml;
 } catch (\Exception $e) {
     echo "Erro: " . $e->getMessage();
 }
 ```
+ATENÇÃO: Utilize o método correto da classe `Complements` para cada tipo de evento (Autorização, Cancelamento, e outros), veja abaixo um exemplo protocolando Cancelamento:
 
-[VIDE como protocolar](Complements.md)
+[VIDE como protocolar cada evento na NF-e](Complements.md)
 
 Por fim usamos o *file_put_contents* para criar um arquivo XML em disco para aguardar essa nota. A receita exige que você guarde os XMLs das suas notas pelo menos por 5 anos, então cuida bem delas.
 ```php

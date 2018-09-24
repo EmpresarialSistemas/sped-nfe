@@ -24,6 +24,8 @@ Framework para geração e comunicação das NFe com as SEFAZ autorizadoras, e v
  
 > *01/10/2018 – Fim da concomitância com a versão 1.00 do QR Code (a versão 4.00 do XML da NFC-e aceitará somente a versão 2.00 do QR Code)* 
 
+## TODO: A conversão com o PADRÂO SEBRAE ainda está incompleta!!
+
 
 *Utilize o chat do Gitter para iniciar discussões específicas sobre o desenvolvimento deste pacote.*
 
@@ -118,6 +120,27 @@ Para que este pacote possa funcionar são necessários os seguintes requisitos d
 > - [sped-ibpt](https://github.com/nfephp-org/sped-ibpt) Consulta dos impostos aproximados na venda a consumidor
 > - [sped-gnre](https://github.com/nfephp-org/sped-gnre) Geração do GNRE
 > - [posprint](https://github.com/nfephp-org/posprint) Impressão de documentos em impressoras térmicas POS
+
+
+## Como eu faço uso desta API no meu projeto?
+
+Primeiro, esta API faz uso dos recursos mais atuais do PHP para classes e objetos, portanto abaixo vai um exemplo ERRADO de uso:
+```
+require 'sped-nfe/src/Make.php';
+
+$nfe = new Make();
+```
+Portanto, você deve primeiro entender que para usar esta API você precisará trabalhar com NAMESPACES pois esta API trabalha com NAMESPACES.
+
+Agora que você sabe que NAMESPACES é requerido, o uso correto para o exemplo acima seria:
+```
+// VENDOR_DIR = pasta vendor da sua instalação composer
+require VENDOR_DIR . 'autoload.php';
+
+use NFePHP\NFe\Make;
+
+$nfe = new Make();
+```
 
 
 ## Donations
