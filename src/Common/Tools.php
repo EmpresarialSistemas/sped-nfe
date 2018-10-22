@@ -30,7 +30,6 @@ use NFePHP\NFe\Factories\Contingency;
 use NFePHP\NFe\Factories\ContingencyNFe;
 use NFePHP\NFe\Factories\Header;
 use NFePHP\NFe\Factories\QRCode;
-use SoapHeader;
 
 class Tools
 {
@@ -108,7 +107,7 @@ class Tools
      * Version of layout
      * @var string
      */
-    protected $versao = '3.10';
+    protected $versao = '4.00';
     /**
      * urlPortal
      * Instância do WebService
@@ -167,7 +166,6 @@ class Tools
      * @var array
      */
     protected $availableVersions = [
-        '3.10' => 'PL_008i2',
         '4.00' => 'PL_009_V4'
     ];
     
@@ -442,7 +440,7 @@ class Tools
      * @param array $opt
      * @return array
      */
-    public function canonicalOptions($opt = [true,false,null,null])
+    public function canonicalOptions(array $opt = [true, false, null, null])
     {
         if (!empty($opt) && is_array($opt)) {
             $this->canonical = $opt;
@@ -454,27 +452,22 @@ class Tools
      * Assembles all the necessary parameters for soap communication
      * @param string $service
      * @param string $uf
-     * @param int $tpAmb
+     * @param int $tpAmb 1-Production or 2-Homologation
      * @param bool $ignoreContingency
+     * @throws RuntimeException
      * @return void
      */
     protected function servico($service, $uf, $tpAmb, $ignoreContingency = false)
     {
-        $ambiente = $tpAmb == 1 ? "producao" : "homologacao";
         $webs = new Webservices($this->getXmlUrlPath());
         $sigla = $uf;
         if (!$ignoreContingency) {
             $contType = $this->contingency->type;
-            if (!empty($contType)
-                && ($contType == 'SVCRS' || $contType == 'SVCAN')
-            ) {
+            if (!empty($contType) && ($contType == 'SVCRS' || $contType == 'SVCAN')) {
                 $sigla = $contType;
             }
         }
-        $stdServ = $webs->get($sigla, $ambiente, $this->modelo);
-        if ($stdServ === false) {
-            throw new \RuntimeException("Nenhum servico encontrado para UF [$sigla], modelo [$this->modelo]");
-        }
+        $stdServ = $webs->get($sigla, $tpAmb, $this->modelo);
         if (empty($stdServ->$service->url)) {
             throw new \RuntimeException("Servico [$service] indisponivel UF [$uf] ou modelo [$this->modelo]");
         }
@@ -486,20 +479,10 @@ class Tools
         $this->urlService = $stdServ->$service->url; //recuperação da url do serviço
         $this->urlMethod = $stdServ->$service->method; //recuperação do método
         $this->urlOperation = $stdServ->$service->operation; //recuperação da operação
-        //monta namespace do serviço
-        $this->urlNamespace = sprintf("%s/wsdl/%s", $this->urlPortal, $this->urlOperation);
+        $this->urlNamespace = sprintf("%s/wsdl/%s", $this->urlPortal, $this->urlOperation); //monta namespace
         //montagem do cabeçalho da comunicação SOAP
         $this->urlHeader = Header::get($this->urlNamespace, $this->urlcUF, $this->urlVersion);
         $this->urlAction = "\"$this->urlNamespace/$this->urlMethod\"";
-        //montagem do SOAP Header
-        //para versões posteriores a 3.10 não incluir o SoapHeader !!!!
-        if ($this->versao < '4.00') {
-            $this->objHeader = new SoapHeader(
-                $this->urlNamespace,
-                'nfeCabecMsg',
-                ['cUF' => $this->urlcUF, 'versaoDados' => $this->urlVersion]
-            );
-        }
     }
     
     /**
@@ -553,13 +536,13 @@ class Tools
         }
         $memmod = $this->modelo;
         $this->modelo = 65;
-        $uf = UFList::getUFByCode(
-            $dom->getElementsByTagName('cUF')->item(0)->nodeValue
-        );
+        $cUF = $dom->getElementsByTagName('cUF')->item(0)->nodeValue;
+        $tpAmb = $dom->getElementsByTagName('tpAmb')->item(0)->nodeValue;
+        $uf = UFList::getUFByCode($cUF);
         $this->servico(
             'NfeConsultaQR',
             $uf,
-            $dom->getElementsByTagName('tpAmb')->item(0)->nodeValue
+            $tpAmb
         );
         $signed = QRCode::putQRTag(
             $dom,
@@ -567,7 +550,7 @@ class Tools
             $this->config->CSCid,
             $this->urlVersion,
             $this->urlService,
-            $this->getURIConsultaNFCe($uf)
+            $this->getURIConsultaNFCe($uf, $tpAmb)
         );
         $this->modelo = $memmod;
         return Strings::clearXmlString($signed);
@@ -579,20 +562,15 @@ class Tools
      * @param string $uf
      * @return string
      */
-    protected function getURIConsultaNFCe($uf)
+    protected function getURIConsultaNFCe($uf, $tpAmb)
     {
-        if ($this->versao < '4.00') {
-            return '';
-        }
-        //essa TAG existe no XML apenas para layout >= 4.x
-        //os URI estão em storage/uri_consulta_nfce.json
         $arr = json_decode(
             file_get_contents(
                 $this->pathwsfiles.'uri_consulta_nfce.json'
             ),
             true
         );
-        $std = json_decode(json_encode($arr[$this->tpAmb]));
+        $std = json_decode(json_encode($arr[$tpAmb]));
         return $std->$uf;
     }
     

@@ -54,8 +54,6 @@ Framework para geração e comunicação das NFe com as SEFAZ autorizadoras, e v
 - E SC não participa.
 
 
-
-
 Este pacote é aderente com os [PSR-1], [PSR-2] e [PSR-4]. Se você observar negligências de conformidade, por favor envie um patch via pull request.
 
 [PSR-1]: https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-1-basic-coding-standard.md
@@ -100,7 +98,7 @@ composer require nfephp-org/sped-nfe:dev-master
 
 Para que este pacote possa funcionar são necessários os seguintes requisitos do PHP e outros pacotes dos quais esse depende.
 
-- PHP 5.6 ou PHP 7.x (recomendável PHP 7.x) 
+- PHP 7.x (recomendável PHP 7.2) 
 - ext-curl
 - ext-dom
 - ext-json
@@ -158,9 +156,12 @@ Mas também, caso você ache que qualquer informação obtida aqui, lhe foi úti
 <img alt="Doar PagSeguro" src="https://stc.pagseguro.uol.com.br/public/img/botoes/doacoes/120x53-doar.gif"/></a>
 
 
-*Agradecemos a contribuição, dos colegas abaixo indicados, pois sem a ajuda deles o desenvolvimento desse projeto seria muito mais lento e talvez até impossível.*
+## Acknowledgments
 
-> ### Walber Sales - *Patrocinador Gold*
+- A todos os colegas que colaboram de alguma forma com o desenvolvimento continuo desta API.
+
+<a href="https://www.jetbrains.com/?from=NFePHP"><img src="https://github.com/robmachado/sped-nfe/blob/master/docs/images/jetbrains.png" alt="JetBrains" width="80"></a> | A JetBrains pelo fornecimento de uma licença do PHPStorm um dos melhores IDE para desenvolvimento em PHP.
+----- | -----
 
 ## Documentation
 
@@ -203,6 +204,7 @@ Este pacote está diponibilizado sob LGPLv3 ou MIT License (MIT). Leia  [Arquivo
 [ico-version]: https://img.shields.io/packagist/v/nfephp-org/sped-nfe.svg?style=flat-square
 [ico-license]: https://poser.pugx.org/nfephp-org/nfephp/license.svg?style=flat-square
 [ico-gitter]: https://img.shields.io/badge/GITTER-4%20users%20online-green.svg?style=flat-square
+
 
 [link-packagist]: https://packagist.org/packages/nfephp-org/sped-nfe
 [link-travis]: https://travis-ci.org/nfephp-org/sped-nfe
