@@ -7,6 +7,11 @@ Para construir o XML da NFe (ou da NFCe) deve ser usada a classe Make::class
 
 Esses stdClass pode ser criados diretamente como demonstrado nos exemplos abaixo, mas também podem ser criados a partir de matrizes.
 
+## *NOTA: Ajustado para NT 2018.001 v1.00* Usar novos campos dessa NT em produção somente a partir de 29/04/2019. 
+## *NOTA: Ajustado para NT 2018.001 v1.10* Usar novos campos dessa NT em produção somente a partir de 29/04/2019. 
+
+> Existe um provável ERRO nos XSDs PL_009_V4, fornecidos em 02/01/2019, onde estabelece um comprimento para o campo hashCSRT de 28 digitos base64Binary, **quando na verdade são gerados 30 digitos segundo esta formatação**.
+
 ```php
 //criando o stdClass a partir de um array
 $array = [
@@ -258,6 +263,7 @@ $nfe->tagenderDest($std);
 ```
 
 ### function tagretirada($std):DOMElement
+> NOTA: Ajustado para NT 2018.005
 Node indicativo de local de retirada diferente do endereço do emitente
 
 | Parametro | Tipo | Descrição |
@@ -266,21 +272,29 @@ Node indicativo de local de retirada diferente do endereço do emitente
 
 ```php
 $std = new stdClass();
-$std->xLgr;
-$std->nro;
-$std->xCpl;
-$std->xBairro;
-$std->cMun;
-$std->xMun;
-$std->UF;
-$std->CNPJ; //indicar apenas um CNPJ ou CPF
+$std->CNPJ = '12345678901234; //indicar apenas um CNPJ ou CPF
 $std->CPF = null;
+$std->IE = '12345678901';
+$std->xNome = 'Beltrano e Cia Ltda';
+$std->xLgr = 'Rua Um;
+$std->nro = '123';
+$std->xCpl = 'sobreloja';
+$std->xBairro = 'centro';
+$std->cMun = '3550308';
+$std->xMun = 'Sao Paulo';
+$std->UF = 'SP;
+$std->CEP = '01023000';
+$std->cPais = '1058';
+$std->xPais = 'BRASIL';
+$std->fone = '1122225544';
+$std->email = 'contato@beltrano.com.br';
 
 $nfe->tagretirada($std);
 ```
 
 
 ### function tagentrega($std):DOMElement
+> NOTA: Ajustado para NT 2018.005
 Node indicativo de local de entraga diferente do endereço do destinatário
 
 | Parametro | Tipo | Descrição |
@@ -288,15 +302,22 @@ Node indicativo de local de entraga diferente do endereço do destinatário
 | $std | stcClass | contêm os dados dos campos, nomeados conforme manual |
 ```php
 $std = new stdClass();
-$std->xLgr;
-$std->nro;
-$std->xCpl;
-$std->xBairro;
-$std->cMun;
-$std->xMun;
-$std->UF;
 $std->CNPJ; //indicar um CNPJ ou CPF
 $std->CPF = null;
+$std->IE = '12345678901';
+$std->xNome = 'Beltrano e Cia Ltda';
+$std->xLgr = 'Rua Um;
+$std->nro = '123';
+$std->xCpl = 'sobreloja';
+$std->xBairro = 'centro';
+$std->cMun = '3550308';
+$std->xMun = 'Sao Paulo';
+$std->UF = 'SP;
+$std->CEP = '01023000';
+$std->cPais = '1058';
+$std->xPais = 'BRASIL';
+$std->fone = '1122225544';
+$std->email = 'contato@beltrano.com.br';
 
 $nfe->tagentrega($std);
 ```
@@ -542,6 +563,7 @@ $nfe->tagveicProd($std);
 ```
 
 ### function tagmed($std):DOMElement
+> NOTA: Ajustado conforme NT 2018.005
 Node com o detalhamento de Medicamentos e de matérias-primas farmacêuticas
 
 | Parametro | Tipo | Descrição |
@@ -550,15 +572,9 @@ Node com o detalhamento de Medicamentos e de matérias-primas farmacêuticas
 ```php
 $std = new stdClass();
 $std->item = 1; //item da NFe
-
-$std->nLote; //removido no layout 4.00
-$std->qLote; //removido no layout 4.00
-$std->dFab; //removido no layout 4.00
-$std->dVal; //removido no layout 4.00
-
-$std->vPMC;
-
-$std->cProdANVISA; //incluido no layout 4.00
+$std->cProdANVISA = '1234567890123'; //incluido no layout 4.00
+$std->xMotivoIsencao = 'RDC 238';
+$std->vPMC = 102.22;
 
 $nfe->tagmed($std);
 ```
@@ -644,6 +660,7 @@ $nfe->tagimposto($std);
 ```
 
 ### function tagICMS($std):DOMElement
+> NOTA: Ajustado conforme NT 2018.005_1.10
 Node com informações do ICMS do item da NFe
 
 | Parametro | Tipo | Descrição |
@@ -686,6 +703,7 @@ $std->pRedBCEfet;
 $std->vBCEfet;
 $std->pICMSEfet;
 $std->vICMSEfet;
+$std->vICMSSubstituto; //NT2018.005_1.10_Fevereiro de 2019
 
 $nfe->tagICMS($std);
 ```
@@ -719,6 +737,7 @@ $nfe->tagICMSPart($std);
 ```
 
 ### function tagICMSST($std):DOMElement
+> NOTA: Ajustado conforme NT 2018.005 e NT 2018.005_1.10
 Node Repasse de ICMS ST retido anteriormente em operações interestaduais com repasses através do Substituto Tributário
 
 | Parametro | Tipo | Descrição |
@@ -733,12 +752,22 @@ $std->vBCSTRet = 1000.00;
 $std->vICMSSTRet = 190.00;
 $std->vBCSTDest = 1000.00;
 $std->vICMSSTDest = 1.00;
+$std->vBCFCPSTRet = 1000.00;
+$std->pFCPSTRet = 1.00;
+$std->vFCPSTRet = 10.00;
+$std->pST = null;
+$std->vICMSSubstituto = null;
+$std->pRedBCEfet = null;
+$std->vBCEfet = null;
+$std->pICMSEfet = null;
+$std->vICMSEfet = null;
 
 $nfe->tagICMSST($std);
 ```
 
 ### function tagICMSSN($std):DOMElement
 Node referente Tributação ICMS pelo Simples Nacional do item da NFe
+> NOTA: Ajustado conforme NT 2018.005_1.10
 
 | Parametro | Tipo | Descrição |
 | :--- | :---: | :--- |
@@ -774,6 +803,7 @@ $std->pRedBCEfet = null;
 $std->vBCEfet = null;
 $std->pICMSEfet = null;
 $std->vICMSEfet = null;
+$std->vICMSSubstituto = null;
 
 $nfe->tagICMSSN($std);
 ```
@@ -1054,6 +1084,7 @@ Node indicativo da forma de frete
 | Parametro | Tipo | Descrição |
 | :--- | :---: | :--- |
 | $std | stcClass | contêm os dados dos campos, nomeados conforme manual |
+
 ```php
 $std = new stdClass();
 $std->modFrete = 1;
@@ -1412,7 +1443,7 @@ $std->vDed = 100.00;
 $nfe->tagdeduc($std);
 ```
 ### function taginfNFeSupl($std):DOMElement
-Node das informações suplementare da NFCe.
+Node das informações suplementares da NFCe.
 
 *Não é necessário informar será prenchido automaticamente após a assinatura da NFCe*
 
@@ -1428,6 +1459,26 @@ $std->urlChave;
 $nfe->taginfNFeSupl($std);
 ```
 
+### function taginfRespTec($std):DOMElement
+Node da informação referentes ao Responsável Técnico NT 2018.005
+**Esta tag é OPCIONAL mas se for passada todos os campos devem ser passados para a função.**
+
+| Parametro | Tipo | Descrição |
+| :--- | :---: | :--- |
+| $std | stcClass | contêm os dados dos campos, nomeados conforme manual |
+
+```php
+$std = new stdClass();
+$std->CNPJ = '99999999999999'; //CNPJ da pessoa jurídica responsável pelo sistema utilizado na emissão do documento fiscal eletrônico
+$std->xContato= 'Fulano de Tal'; //Nome da pessoa a ser contatada
+$std->email = 'fulano@soft.com.br'; //E-mail da pessoa jurídica a ser contatada
+$std->fone = '1155551122'; //Telefone da pessoa jurídica/física a ser contatada
+$std->CSRT = 'G8063VRTNDMO886SFNK5LDUDEI24XJ22YIPO'; //Código de Segurança do Responsável Técnico
+$std->idCSRT = '01'; //Identificador do CSRT
+
+$nfe->taginfRespTec($std);
+```
+
 ### function montaNFe():boolean
 Este método chama o metodo monta(), mantido apenas para compatibilidade.
 
@@ -1439,7 +1490,7 @@ $result = $nfe->montaNFe();
 Este método executa a montagem do XML
 
 ```php
-$result = $nfe->montaNFe();
+$result = $nfe->monta();
 ```
 
 ### function getXMl():string
